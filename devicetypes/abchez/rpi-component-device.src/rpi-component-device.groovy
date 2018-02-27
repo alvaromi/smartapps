@@ -97,6 +97,8 @@ def setOffline() {
 logEx {
     Log("setOffline")
     sendEvent (name: "state", value: "offline")
+    
+    getChildDevices().each { d -> d.initialize() }
 }
 }
 
@@ -129,7 +131,7 @@ logEx {
         }
         if (!childDevice) {
             Log "Creating RPI Device with dni: ${childId} and handler: ${childDeviceHandler}"
-            childDevice = addChildDevice("abchez", "RPI Motion Sensor Device", childId, hubId, [label: "RPI Sensor ${rpiDeviceId}"])
+            childDevice = addChildDevice("abchez", childDeviceHandler, childId, hubId, [label: "RPI Sensor ${rpiDeviceId}"])
             childDevice.initialize()
         }
     }
