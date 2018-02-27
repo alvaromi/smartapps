@@ -6,6 +6,7 @@
  */
 metadata {
 	definition (name: "RPI Component Device", namespace: "abchez", author: "Alvaro Miranda") {
+        capability "Bridge"
         attribute "state", "string"
 	}
 
@@ -13,10 +14,16 @@ metadata {
 		// TODO: define status and reply messages here
 	}
 
-	tiles {
-		valueTile("stateTyle", "device.state", decoration: "flat") {
-              state "state", label:'${currentValue}'
+	tiles(scale: 2) {
+        standardTile("stateTile", "device.state", width: 6, height: 4) {
+            state "offline", label: '${currentValue}', icon: "st.Lighting.light99-hue", backgroundColor: "#ffffff"
+            state "online", label: '${currentValue}', icon: "st.Lighting.light99-hue", backgroundColor: "#00a0dc"
         }
+        valueTile("idTile", "device.id", width: 6, height: 2) {
+              state "id", label:'MAC Addr: ${currentValue}'
+        }
+        main "stateTile"
+    	details(["stateTile","idTile"])
 	}
 }
 
@@ -85,6 +92,11 @@ logEx {
 }
 }
 
+def setId() {
+logEx {
+    sendEvent (name: "id", value: device.getDeviceNetworkId())
+}
+}
 
 def setOnline() {
 logEx {
@@ -136,6 +148,7 @@ logEx {
         }
     }
 }
+return true
 }
 
 def getChildDeviceId (String childKey) {
@@ -159,8 +172,10 @@ def Log(String text) {
 def logEx(closure) {
     try {
         closure()
+        return true
     }
     catch (e) {
+        parent.setError("${e}")
         parent.Log "EXCEPTION: ${e}"
         throw e
     }
