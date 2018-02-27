@@ -43,6 +43,10 @@ def setInactive(data) {
     return sendEvent(name: "motion", value: "inactive", data : data)
 }
 
+def initialize() {
+    setInactive()
+}
+
 def Log(String text) {
     parent.Log(text)
 }

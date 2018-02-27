@@ -14,21 +14,53 @@ metadata {
 	}
 
 	tiles {
-		// TODO: define your main and details tiles here
+		valueTile("stateTyle", "device.state", decoration: "flat") {
+              state "state", label:'${currentValue}'
+        }
 	}
 }
 
 def getRpiDeviceTypeToDeviceHandler(String rpiDeviceType) {
     if (!state.rpiTypeToHandler) {
         state.rpiTypeToHandler = [
-            'motion' : "RPI Motion Sensor Device"
+            'motion' : "RPI Motion Sensor Device",
+            'contact' :  "RPI Contact Sensor Device",
         ]
     }
     return state.rpiTypeToHandler[rpiDeviceType];
 }
 
+def getDeviceHandlerToParseHandler(String deviceHandlerName) {
+    if (!state.deviceHandlerToParseHandler) {
+        state.deviceHandlerToParseHandler = [
+            'RPI Motion Sensor Device' : { childDevice, rpiNotification ->
+                    Log("parse for type RPI Motion Sensor Device")
+                    def data = [ eventTime : rpiNotification.eventTime]
+                    if (rpiNotification.state == "active") {
+                        childDevice.setActive(data)
+                    }
+                    else if (rpiNotification.state == "inactive") {
+                        childDevice.setInactive(data)
+                    }
+            },
+            'RPI Contact Sensor Device' : { childDevice, rpiNotification ->
+                    Log("parse for type RPI Contact Sensor Device")
+                    def data = [ eventTime : rpiNotification.eventTime]
+                    if (rpiNotification.state == "open") {
+                        childDevice.setOpen(data)
+                    }
+                    else if (rpiNotification.state == "closed") {
+                        childDevice.setClosed(data)
+                    }
+            }
+        ]
+    }
+    return state.deviceHandlerToParseHandler[deviceHandlerName];
+}
+
 // parse events into attributes
 def parse(String description) {
+logEx {
     parent.Log("parse ${description}")
 	def msg = parseLanMessage(description)
 //    def headersAsString = msg.header // => headers as a string
@@ -46,26 +78,26 @@ def parse(String description) {
     	def childId = getChildDeviceId(rpiNotification.deviceId)
         def childDevice = getChildDevices().find { d -> d.getDeviceNetworkId() == childId}
         if (childDevice) {
-            def data = [ eventTime : rpiNotification.eventTime]
-            if (rpiNotification.state == "active") {
-	        	childDevice.setActive(data)
-            }
-            else if (rpiNotification.state == "inactive") {
-            	childDevice.setInactive(data)
-            }
+            def parseHandler = getDeviceHandlerToParseHandler(childDevice.getTypeName())
+            parseHandler(childDevice, rpiNotification)
         }
     }
+}
 }
 
 
 def setOnline() {
+logEx {
     Log("setOnline")
     sendEvent (name: "state", value: "online")
 }
+}
 
 def setOffline() {
+logEx {
     Log("setOffline")
     sendEvent (name: "state", value: "offline")
+}
 }
 
 def refreshChildren(rpiChildDevices) {
@@ -97,8 +129,8 @@ logEx {
         }
         if (!childDevice) {
             Log "Creating RPI Device with dni: ${childId} and handler: ${childDeviceHandler}"
-            childDevice = addChildDevice("abchez", "RPI Motion Sensor Device", childId, hubId)
-            childDevice.setInactive()
+            childDevice = addChildDevice("abchez", "RPI Motion Sensor Device", childId, hubId, [label: "RPI Sensor ${rpiDeviceId}"])
+            childDevice.initialize()
         }
     }
 }
