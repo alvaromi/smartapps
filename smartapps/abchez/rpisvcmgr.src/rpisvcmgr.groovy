@@ -17,12 +17,28 @@ definition(
 
 
 preferences {
-	page(name:"page1", title:"Device Setup", install: true, uninstall: true) {
+    page(name:"page1")
+}
+
+def page1() {
+    dynamicPage(name:"page1", title:"Device Setup", install: true, uninstall: true) {
     	section {
         	input(name: "rpiIP", type: "text", title: "Raspberry PI IP address", required: true)
-        	input(name: "rpiPort", type: "number", title: "Raspberry IP port", defaultValue: 8800, required: true)
+        	input(name: "rpiPort", type: "number", title: "Raspberry PI port", defaultValue: 8800, required: true)
+            if (app.getInstallationState() == "COMPLETE") {
+	            def c = getChildDevices().find { d -> true }
+                if (!c) {
+                    paragraph "Raspberry PI not installed or deleted."
+                } else {
+                    paragraph "Raspberry PI ${c.getDeviceNetworkId()} is ${c.currentValue("state")}"
+                }
+                def errorState = app.currentState("error")
+                if (errorState && errorState.value != "") {
+                	paragraph "${app.currentState("error").value}"
+                }
+            }
         }
-    }    
+    }
 }
 
 def installed() {
@@ -33,14 +49,19 @@ def installed() {
 def uninstalled() {
 }
 
+def childUninstalled() {
+}
+
 def updated() {
 	Log("Updated with settings: ${settings}")
     unschedule()
 	unsubscribe()
+    
 	initialize()
 }
 
 def initialize() {
+
     state.retryCount = 0
     startSetup()
 }
@@ -54,20 +75,20 @@ logEx {
     subscribeRPI()
 }
 }
- 
+
 def setupTimeout(data) {
 logEx {
 	if (state.setupUUID != data.setupUUID)
     	return;
-        
-    Log("TIMEOUT setting up RPI Component Device")
-        
-    setSetupError()
-}
-}
- 
-def setSetupError() {
+    
     state.setupPending = false
+
+    Log("TIMEOUT setting up RPI Component Device")
+    def errorState = app.currentState("error")
+    if (!errorState || errorState.value == "") {
+        setError("TIMEOUT setting up RPI Component Device")
+    }
+
     ("ERROR setting up RPI Component Device")
     
     if (state.retryCount == 2) {
@@ -82,6 +103,7 @@ def setSetupError() {
     def timeToRetrySecs = (state.retryCount < 30 ? state.retryCount : 30) * 10
     Log("Retrying in ${timeToRetrySecs}...")
     runIn (timeToRetrySecs, startSetup)
+}
 }
 
 def subscribeRPI () {
@@ -101,7 +123,7 @@ logEx {
     	return;
 
     if (hubResponse?.json?.uuid == "${state.setupUUID}") {
-        Log("subscribeRPIcallback ${state.setupUUID} ${hubResponse}")
+        Log("subscribeRPIcallback ${state.setupUUID}")
         def piDevices = hubResponse?.json?.devices;
         if (piDevices?.size() > 0) {
             return createOrUpdateComponentdevice(hubResponse.hubId, hubResponse.mac, piDevices)
@@ -112,16 +134,22 @@ logEx {
 
 def createOrUpdateComponentdevice(hubId, mac, piDevices) {
     Log("createOrUpdateComponentdevice")
-    def delete = getChildDevices().findAll { d -> d.getDeviceNetworkId() != mac }
+    def deviceLabel = "RPI ${rpiIP}"
+
+    def delete = getChildDevices().findAll { d -> d.getDeviceNetworkId() != mac || d.getLabel() != deviceLabel }
     delete.each { d -> deleteChildDevice(d.getDeviceNetworkId()) }
 
-    def piComponentDevice = getChildDevices()?.find { d -> d.getDeviceNetworkId() == mac }
+    def piComponentDevice = getChildDevices()?.find { d -> d.getDeviceNetworkId() == mac && d.getLabel() == deviceLabel }
     if (!piComponentDevice) {
         Log("Creating RPI Component Device with dni: ${mac}")
-        piComponentDevice = addChildDevice("abchez", "RPI Component Device", mac, hubId)
+        piComponentDevice = addChildDevice("abchez", "RPI Component Device", mac, hubId, [label: deviceLabel])
+        piComponentDevice.setId()
     }
-    piComponentDevice.refreshChildren(piDevices)
-    setSetupCompleted()
+    app.updateLabel("Raspberry PI ${rpiIP} ${mac}")
+    
+    if (piComponentDevice.refreshChildren(piDevices)) {
+        setSetupCompleted()
+    }
 }
 
 def setSetupCompleted() {
@@ -139,11 +167,20 @@ def setSetupCompleted() {
     Log("SUCCESS setting up RPI Component Device")
     
     runIn (60 * 5, startSetup)
+    
+    def errorState = app.currentState("error")
+    if (errorState && errorState.value != "") {
+        setError("")
+    }
 }
 
 def Log(String text) {
-    sendEvent(name: "log", value: text)
+    //sendEvent(name: "log", value: text)
     log.debug text
+}
+
+def setError(String text) {
+    sendEvent(name: "error", value: text)
 }
 
 def logEx(closure) {
@@ -151,7 +188,8 @@ def logEx(closure) {
         closure()
     }
     catch (e) {
-        Log("EXCEPTION: ${e}")
+        setError("${e}")
+        Log("EXCEPTION error: ${e}")
         throw e
     }
 }
