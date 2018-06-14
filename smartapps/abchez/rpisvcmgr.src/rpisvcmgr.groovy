@@ -89,8 +89,6 @@ logEx {
         setError("TIMEOUT setting up RPI Component Device")
     }
 
-    ("ERROR setting up RPI Component Device")
-    
     if (state.retryCount == 2) {
         getChildDevices().each {
 	    	d -> d.setOffline()
@@ -180,6 +178,7 @@ def Log(String text) {
 }
 
 def setError(String text) {
+    state.setErrorTime = new Date ()
     sendEvent(name: "error", value: text)
 }
 
