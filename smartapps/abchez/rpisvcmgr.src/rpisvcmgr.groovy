@@ -158,23 +158,24 @@ def setSetupCompleted() {
     	}
     }
 
-    unschedule('setupTimeout')
     state.setupPending = false
     state.lastSetupCompleted = new Date ()
     state.retryCount = 0
     Log("SUCCESS setting up RPI Component Device")
     
-    runIn (60 * 5, startSetup)
-    
     def errorState = app.currentState("error")
     if (errorState && errorState.value != "") {
         setError("")
     }
+
+    unschedule('startSetup')
+    runIn (60 * 10, startSetup)
+    unschedule('setupTimeout')
 }
 
 def Log(String text) {
-    //sendEvent(name: "log", value: text)
-    log.debug text
+    sendEvent(name: "log", value: text)
+    //log.debug text
 }
 
 def setError(String text) {
