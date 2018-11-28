@@ -56,7 +56,7 @@ def checkWarningBatteryLevels() {
     batteryPoweredDevices
     	.findAll { it.currentBattery <= minLevelWarning && it.currentBattery > minLevelCritical }
         .sort { it.currentBattery }
-    sendMessage (warningLevelDevices, "LOW BAT")
+    sendMessage (warningLevelDevices, "WARNING")
 }
 
 def checkCriticalBatteryLevels() {
@@ -73,7 +73,7 @@ def sendMessage(devices, String headMessage)
     def msg = headMessage + " : " + devices.collect { "${it.displayName} ${it.currentBattery}%" }.join(" ")
     
     log.debug msg
-    sendPushMessage(msg);
+    sendPush(msg);
     
     if (phoneNumber) {
         sendSmsMessage ("${phoneNumber}", msg.substring(0,Math.min(msg.length(),140)))
