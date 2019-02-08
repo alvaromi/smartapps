@@ -8,7 +8,7 @@ definition(
     name: "RpiSvcMgr",
     namespace: "abchez",
     author: "abchez",
-    description: "Raspberry PI svc mgr",
+    description: "HTTP sensor server svc mgr",
     category: "My Apps",
     iconUrl: "https://www.unifiedremote.com/content/logos/RaspberryPi.png",
     iconX2Url: "https://www.unifiedremote.com/content/logos/RaspberryPi.png",
@@ -23,14 +23,15 @@ preferences {
 def page1() {
     dynamicPage(name:"page1", title:"Device Setup", install: true, uninstall: true) {
     	section {
-        	input(name: "rpiIP", type: "text", title: "Raspberry PI IP address", required: true)
-        	input(name: "rpiPort", type: "number", title: "Raspberry PI port", defaultValue: 8800, required: true)
+        	input(name: "rpiIP", type: "text", title: "IP address", required: true)
+        	input(name: "rpiPort", type: "number", title: "Port", defaultValue: 8800, required: true)
+        	input(name: "rpiLabel", type: "text", title: "Name", required: false)
             if (app.getInstallationState() == "COMPLETE") {
 	            def c = getChildDevices().find { d -> true }
                 if (!c) {
-                    paragraph "Raspberry PI not installed or deleted."
+                    paragraph "HTTP sensor server device not installed or deleted."
                 } else {
-                    paragraph "Raspberry PI ${c.getDeviceNetworkId()} is ${c.currentValue("state")}"
+                    paragraph "HTTP sensor server device ${c.getDeviceNetworkId()} is ${c.currentValue("state")}"
                 }
                 def errorState = app.currentState("error")
                 if (errorState && errorState.value != "") {
@@ -54,20 +55,29 @@ def childUninstalled() {
 
 def updated() {
 	Log("Updated with settings: ${settings}")
-    unschedule()
-	unsubscribe()
-    
-	initialize()
+    if (!state.setupPending) {
+        unschedule()
+        unsubscribe()
+
+        initialize()
+    }
 }
 
 def initialize() {
 
+    def appLabel = settings.rpiLabel;
+    if (appLabel == null || appLabel == "" || appLabel == "RpiSvcMgr") {
+        appLabel = "HTTP sensors ${rpiIP}";
+    }
+    
+    app.updateLabel(appLabel)
     state.retryCount = 0
     startSetup()
 }
 
 def startSetup () {
 logEx {
+    Log("startSetup")
     state.setupPending = true
     state.setupUUID = UUID.randomUUID().toString()
     runIn(20, setupTimeout, [data: [setupUUID: state.setupUUID]])
@@ -92,7 +102,7 @@ logEx {
     if (state.retryCount == 2) {
         getChildDevices().each {
 	    	d -> d.setOffline()
-    		sendPushMessage("Raspberri PI ${d.getDeviceNetworkId()} is offline.");
+    		sendPushMessage("${app.getLabel()} is offline.");
     	}
     }
     
@@ -131,19 +141,24 @@ logEx {
 }
 
 def createOrUpdateComponentdevice(hubId, mac, piDevices) {
-    Log("createOrUpdateComponentdevice")
-    def deviceLabel = "RPI ${rpiIP}"
-
-    def delete = getChildDevices().findAll { d -> d.getDeviceNetworkId() != mac || d.getLabel() != deviceLabel }
+    Log("createOrUpdateComponentdevice ${rpiLabel}")
+    
+    def appLabel = settings.rpiLabel;
+    if (appLabel == null || appLabel == "" || appLabel == "RpiSvcMgr") {
+        appLabel = "HTTP sensors ${rpiIP} ${mac}";
+    }
+    app.updateLabel(appLabel)
+    
+    def delete = getChildDevices().findAll { d -> d.getDeviceNetworkId() != mac }
     delete.each { d -> deleteChildDevice(d.getDeviceNetworkId()) }
 
-    def piComponentDevice = getChildDevices()?.find { d -> d.getDeviceNetworkId() == mac && d.getLabel() == deviceLabel }
+    def piComponentDevice = getChildDevices()?.find { d -> d.getDeviceNetworkId() == mac }
     if (!piComponentDevice) {
         Log("Creating RPI Component Device with dni: ${mac}")
+        def deviceLabel = "HTTP sensors ${rpiIP}"
         piComponentDevice = addChildDevice("abchez", "RPI Component Device", mac, hubId, [label: deviceLabel])
         piComponentDevice.setId()
     }
-    app.updateLabel("Raspberry PI ${rpiIP} ${mac}")
     
     if (piComponentDevice.refreshChildren(piDevices)) {
         setSetupCompleted()
@@ -154,7 +169,7 @@ def setSetupCompleted() {
     getChildDevices().each { 
     	d -> d.setOnline()
         if (state.retryCount > 2) {
-    		sendPushMessage("Raspberri PI ${d.getDeviceNetworkId()} is back online.");
+    		sendPushMessage("${app.getLabel()} is back online.");
     	}
     }
 
