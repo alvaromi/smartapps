@@ -37,34 +37,6 @@ def getRpiDeviceTypeToDeviceHandler(String rpiDeviceType) {
     return state.rpiTypeToHandler[rpiDeviceType];
 }
 
-def getDeviceHandlerToParseHandler(String deviceHandlerName) {
-    if (!state.deviceHandlerToParseHandler) {
-        state.deviceHandlerToParseHandler = [
-            'RPI Motion Sensor Device' : { childDevice, rpiNotification ->
-                    Log("parse for type RPI Motion Sensor Device")
-                    def data = [ eventTime : rpiNotification.eventTime]
-                    if (rpiNotification.state == "active") {
-                        childDevice.setActive(data)
-                    }
-                    else if (rpiNotification.state == "inactive") {
-                        childDevice.setInactive(data)
-                    }
-            },
-            'RPI Contact Sensor Device' : { childDevice, rpiNotification ->
-                    Log("parse for type RPI Contact Sensor Device")
-                    def data = [ eventTime : rpiNotification.eventTime]
-                    if (rpiNotification.state == "open") {
-                        childDevice.setOpen(data)
-                    }
-                    else if (rpiNotification.state == "closed") {
-                        childDevice.setClosed(data)
-                    }
-            }
-        ]
-    }
-    return state.deviceHandlerToParseHandler[deviceHandlerName];
-}
-
 // parse events into attributes
 def parse(String description) {
 logEx {
@@ -85,8 +57,18 @@ logEx {
     	def childId = getChildDeviceId(rpiNotification.deviceId)
         def childDevice = getChildDevices().find { d -> d.getDeviceNetworkId() == childId}
         if (childDevice) {
-            def parseHandler = getDeviceHandlerToParseHandler(childDevice.getTypeName())
-            parseHandler(childDevice, rpiNotification)
+        	def lastState = childDevice.getCurrentState()
+            def lastSession = childDevice.state.session
+            def lastEventTime = childDevice.state.eventTime
+            Log("last was ${rpiNotification.deviceId} ${lastEventTime}")
+            def hasMoreRecentEvent = (lastSession == rpiNotification.session) && lastEventTime && (lastEventTime > rpiNotification.eventTime)
+
+            childDevice.setCurrentState(rpiNotification.deviceId, rpiNotification.state, [ session : rpiNotification.session, eventTime : rpiNotification.eventTime])
+            
+            if (hasMoreRecentEvent) {
+            	Log("!!!!!!!!!hasMoreRecentEvent ${rpiNotification.deviceId}")
+                childDevice.setCurrentState(rpiNotification.deviceId, lastState, [ session : lastSession, eventTime : lastEventTime])
+            }
         }
     }
 }
@@ -131,7 +113,6 @@ logEx {
         def childId = getChildDeviceId(rpiDeviceId)
         def childDeviceHandler = getRpiDeviceTypeToDeviceHandler(rpiDeviceType)
         
-        
         Log "Processing childId: ${childId} handler: ${childDeviceHandler}"
         
         def childDevice = getChildDevice(childId)
@@ -143,7 +124,7 @@ logEx {
         }
         if (!childDevice) {
             Log "Creating RPI Device with dni: ${childId} and handler: ${childDeviceHandler}"
-            childDevice = addChildDevice("abchez", childDeviceHandler, childId, hubId, [label: "RPI Sensor ${rpiDeviceId}"])
+            childDevice = addChildDevice("abchez", childDeviceHandler, childId, hubId, [label: "${device.getLabel()} / ${rpiDeviceId}"])
             childDevice.initialize()
         }
     }
