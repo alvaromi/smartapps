@@ -70,7 +70,7 @@ def sendMessage(devices, String headMessage)
 {
 	if (devices.size() == 0) return;
     
-    def msg = headMessage + " : " + devices.collect { "${it.displayName} ${it.currentBattery}%" }.join(" ")
+    def msg = headMessage + " : " + devices.collect { "${it.displayName} : ${it.currentBattery}%" }.join("\n")
     
     log.debug msg
     sendPush(msg);
