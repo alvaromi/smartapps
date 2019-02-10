@@ -7,6 +7,8 @@
 metadata {
 	definition (name: "RPI Motion Sensor Device", namespace: "abchez", author: "Alvaro Miranda") {
 		capability "Motion Sensor"
+        attribute "session", "string"
+        attribute "eventTime", "string"
 	}
 
 
@@ -33,18 +35,19 @@ def parse(String description) {
 	Log("parse ${description}")
 }
 
-def setActive(data) {
-	Log("setActive ${data}")
-	return sendEvent(name: "motion", value: "active", data : data)
+def getCurrentState() {
+    return device.currentValue("motion")
 }
 
-def setInactive(data) {
-	Log("setInactive ${data}")
-    return sendEvent(name: "motion", value: "inactive", data : data)
+def setCurrentState(id, value, data) {
+	Log("set ${id} ${value} ${data}")
+	sendEvent(name: "motion", value: value, data : data)
+    state.session = data.session
+    state.eventTime = data.eventTime
 }
 
 def initialize() {
-    setInactive()
+    setCurrentState("inactive")
 }
 
 def Log(String text) {
