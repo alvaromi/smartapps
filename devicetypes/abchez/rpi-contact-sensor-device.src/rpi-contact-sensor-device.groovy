@@ -33,18 +33,19 @@ def parse(String description) {
 	Log("parse ${description}")
 }
 
-def setOpen(data) {
-	Log("setOpen ${data}")
-	return sendEvent(name: "contact", value: "open", data : data)
+def getCurrentState() {
+    return device.currentValue("contact")
 }
 
-def setClosed(data) {
-	Log("setClosed ${data}")
-    return sendEvent(name: "contact", value: "closed", data : data)
+def setCurrentState(id, value, data) {
+	Log("set ${id} ${value} ${data}")
+	sendEvent(name: "contact", value: value, data : data)
+    state.session =  data.session
+    state.eventTime = data.eventTime
 }
 
 def initialize() {
-    setClosed()
+    setContactState("closed")
 }
 
 def Log(String text) {
