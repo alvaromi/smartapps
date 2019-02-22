@@ -184,7 +184,7 @@ def setSetupCompleted() {
     }
 
     unschedule('startSetup')
-    runIn (60 * 60, startSetup)
+    runIn (60 * 15, startSetup)
     unschedule('setupTimeout')
 }
 
