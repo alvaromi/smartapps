@@ -79,7 +79,7 @@ def startSetup () {
 logEx {
     Log("startSetup")
     state.setupPending = true
-    state.setupUUID = UUID.randomUUID().toString()
+    state.setupUUID = Long.toHexString((Math.random() * 0x100000).round())
     runIn(20, setupTimeout, [data: [setupUUID: state.setupUUID]])
 
     subscribeRPI()
@@ -184,7 +184,7 @@ def setSetupCompleted() {
     }
 
     unschedule('startSetup')
-    runIn (60 * 10, startSetup)
+    runIn (60 * 60, startSetup)
     unschedule('setupTimeout')
 }
 
