@@ -63,11 +63,11 @@ logEx {
             Log("last was ${rpiNotification.deviceId} ${lastEventTime}")
             def hasMoreRecentEvent = (lastSession == rpiNotification.session) && lastEventTime && (lastEventTime > rpiNotification.eventTime)
 
-            childDevice.setCurrentState(rpiNotification.deviceId, rpiNotification.state, [ session : rpiNotification.session, eventTime : rpiNotification.eventTime])
+            childDevice.setCurrentState(rpiNotification.state, [ session : rpiNotification.session, eventTime : rpiNotification.eventTime])
             
             if (hasMoreRecentEvent) {
             	Log("!!!!!!!!!hasMoreRecentEvent ${rpiNotification.deviceId}")
-                childDevice.setCurrentState(rpiNotification.deviceId, lastState, [ session : lastSession, eventTime : lastEventTime])
+                childDevice.setCurrentState(lastState, [ session : lastSession, eventTime : lastEventTime])
             }
         }
     }

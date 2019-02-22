@@ -39,15 +39,16 @@ def getCurrentState() {
     return device.currentValue("motion")
 }
 
-def setCurrentState(id, value, data) {
-	Log("set ${id} ${value} ${data}")
+def setCurrentState(value, data) {
+	Log("set ${device.getDeviceNetworkId()} ${value} ${data}")
 	sendEvent(name: "motion", value: value, data : data)
-    state.session = data.session
-    state.eventTime = data.eventTime
+    if (data) {
+        state.session = data.session
+        state.eventTime = data.eventTime
+    }
 }
 
 def initialize() {
-    setCurrentState("inactive")
 }
 
 def Log(String text) {
