@@ -7,6 +7,9 @@
 metadata {
 	definition (name: "RPI Component Device", namespace: "abchez", author: "Alvaro Miranda") {
         capability "Bridge"
+        
+        command "pause"
+        
         attribute "state", "string"
 	}
 
@@ -19,12 +22,20 @@ metadata {
             state "offline", label: '${currentValue}', icon: "st.Lighting.light99-hue", backgroundColor: "#ffffff"
             state "online", label: '${currentValue}', icon: "st.Lighting.light99-hue", backgroundColor: "#00a0dc"
         }
+        standardTile("pause", "device.pauseSupported", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+		    //state "default", label:""
+		    state "default", label:"Pause for 5 mins", action:"pause"
+	    }
         valueTile("idTile", "device.id", width: 6, height: 2) {
               state "id", label:'MAC Addr: ${currentValue}'
         }
         main "stateTile"
-    	details(["stateTile","idTile"])
+    	details(["stateTile","pause","idTile"])
 	}
+}
+
+def pause() {
+    parent.cmdPause()
 }
 
 def getRpiDeviceTypeToDeviceHandler(String rpiDeviceType) {
