@@ -10,9 +10,9 @@ definition(
     author: "abchez",
     description: "HTTP sensor server svc mgr",
     category: "My Apps",
-    iconUrl: "https://www.unifiedremote.com/content/logos/RaspberryPi.png",
-    iconX2Url: "https://www.unifiedremote.com/content/logos/RaspberryPi.png",
-    iconX3Url: "https://www.unifiedremote.com/content/logos/RaspberryPi.png")
+    iconUrl: "https://drive.google.com/uc?id=1CX4QK9ydTek2BHUEVnoxN9E69rbhwDgs&export=download",
+    iconX2Url: "https://drive.google.com/uc?id=1CX4QK9ydTek2BHUEVnoxN9E69rbhwDgs&export=download",
+    iconX3Url: "https://drive.google.com/uc?id=1CX4QK9ydTek2BHUEVnoxN9E69rbhwDgs&export=download")
 
 
 
@@ -123,6 +123,15 @@ def subscribeRPI () {
         path: "/subscribe",
         body: [ uuid: state.setupUUID, hubIP: hub.getLocalIP(), hubPort: hub.getLocalSrvPortTCP() ]
     ], "${rpiIP}:${rpiPort}", [callback: subscribeRPIcallback]))
+}
+
+def cmdPause() {
+    Log("pause")
+    
+    sendHubCommand(new physicalgraph.device.HubAction([
+    	method: "POST",
+        path: "/pauseOutput"
+    ], "${rpiIP}:${rpiPort}"))
 }
 
 def subscribeRPIcallback(physicalgraph.device.HubResponse hubResponse) {
