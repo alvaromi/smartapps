@@ -63,7 +63,7 @@ logEx {
 
     def rpiNotification = msg.json
     
-    if (rpiNotification.deviceId) {
+    if (rpiNotification && rpiNotification.deviceId) {
     	Log("parse ${rpiNotification}")
     	def childId = getChildDeviceId(rpiNotification.deviceId)
         def childDevice = getChildDevices().find { d -> d.getDeviceNetworkId() == childId}
@@ -81,6 +81,8 @@ logEx {
                 childDevice.setCurrentState(lastState, [ session : lastSession, eventTime : lastEventTime])
             }
         }
+    } else {
+        Log("parse ${msg.body}")
     }
 }
 }
