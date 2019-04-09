@@ -10,7 +10,8 @@ metadata {
         
         command "pause"
         
-        attribute "state", "string"
+        attribute "onlineState", "string"
+        attribute "id", "string"
 	}
 
 	simulator {
@@ -18,16 +19,15 @@ metadata {
 	}
 
 	tiles(scale: 2) {
-        standardTile("stateTile", "device.state", width: 6, height: 4) {
+        standardTile("stateTile", "device.onlineState", width: 6, height: 4) {
             state "offline", label: '${currentValue}', icon: "st.Lighting.light99-hue", backgroundColor: "#ffffff"
             state "online", label: '${currentValue}', icon: "st.Lighting.light99-hue", backgroundColor: "#00a0dc"
         }
         standardTile("pause", "device.pauseSupported", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-		    //state "default", label:""
 		    state "default", label:"Pause for 5 mins", action:"pause"
 	    }
         valueTile("idTile", "device.id", width: 6, height: 2) {
-              state "id", label:'MAC Addr: ${currentValue}'
+              state "id", label:'${currentValue}'
         }
         main "stateTile"
     	details(["stateTile","pause","idTile"])
@@ -64,7 +64,7 @@ logEx {
     def rpiNotification = msg.json
     
     if (rpiNotification && rpiNotification.deviceId) {
-    	Log("parse ${rpiNotification}")
+    	Log("${rpiNotification}")
     	def childId = getChildDeviceId(rpiNotification.deviceId)
         def childDevice = getChildDevices().find { d -> d.getDeviceNetworkId() == childId}
         if (childDevice) {
@@ -81,6 +81,10 @@ logEx {
                 childDevice.setCurrentState(lastState, [ session : lastSession, eventTime : lastEventTime])
             }
         }
+        state.lastNotification = new Date().getTime()
+    } else if (rpiNotification && rpiNotification.keepAlive) {
+        Log("${rpiNotification}")
+        state.lastNotification = new Date().getTime()
     } else {
         Log("parse ${msg.body}")
     }
@@ -96,16 +100,14 @@ logEx {
 def setOnline() {
 logEx {
     Log("setOnline")
-    sendEvent (name: "state", value: "online")
+    sendEvent (name: "onlineState", value: "online")
 }
 }
 
 def setOffline() {
 logEx {
     Log("setOffline")
-    sendEvent (name: "state", value: "offline")
-    
-    getChildDevices().each { d -> d.initialize() }
+    sendEvent (name: "onlineState", value: "offline")
 }
 }
 
@@ -157,6 +159,11 @@ def getChildDeviceId (String childKey) {
 def getChildDevice (String childKey) {
     def childId = getChildDeviceId(childKey)
     return getChildDevices()?.find { existing -> existing.getDeviceNetworkId() == childId }
+}
+
+def minsSinceLastNotification () {
+    def lastNotification = state.lastNotification? state.lastNotification : 0
+    return ((new Date()).getTime() - lastNotification) / (60 * 1000)
 }
 
 def Log(String text) {
