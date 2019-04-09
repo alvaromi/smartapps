@@ -31,7 +31,10 @@ def page1() {
                 if (!c) {
                     paragraph "HTTP sensor server device not installed or deleted."
                 } else {
-                    paragraph "HTTP sensor server device ${c.getDeviceNetworkId()} is ${c.currentValue("state")}"
+                    paragraph "HTTP sensor server device ${c.getDeviceNetworkId()} is ${c.currentValue("onlineState")}"
+                }
+                if (state.setupPending) {
+                    paragraph "Setup pending..."
                 }
                 def errorState = app.currentState("error")
                 if (errorState && errorState.value != "") {
@@ -55,12 +58,10 @@ def childUninstalled() {
 
 def updated() {
 	Log("Updated with settings: ${settings}")
-    if (!state.setupPending) {
-        unschedule()
-        unsubscribe()
+    unschedule()
+    unsubscribe()
 
-        initialize()
-    }
+    initialize()
 }
 
 def initialize() {
@@ -71,7 +72,7 @@ def initialize() {
     }
     
     app.updateLabel(appLabel)
-    state.retryCount = 0
+    
     startSetup()
 }
 
@@ -80,7 +81,8 @@ logEx {
     Log("startSetup")
     state.setupPending = true
     state.setupUUID = Long.toHexString((Math.random() * 0x100000).round())
-    runIn(20, setupTimeout, [data: [setupUUID: state.setupUUID]])
+    clearError()
+    runIn(60, setupTimeout, [data: [setupUUID: state.setupUUID]])
 
     subscribeRPI()
 }
@@ -93,24 +95,16 @@ logEx {
     
     state.setupPending = false
 
-    Log("TIMEOUT setting up RPI Component Device")
+    Log("TIMEOUT setting up HTTP sensor server device")
     def errorState = app.currentState("error")
     if (!errorState || errorState.value == "") {
-        setError("TIMEOUT setting up RPI Component Device")
+        setError("TIMEOUT setting up HTTP sensor server device")
     }
 
-    if (state.retryCount == 2) {
-        getChildDevices().each {
-	    	d -> d.setOffline()
-    		sendPushMessage("${app.getLabel()} is offline.");
-    	}
+    getChildDevices().each {
+        d -> d.setOffline()
+        sendPushMessage("${d.getLabel()} is offline.");
     }
-    
-    //retry
-    state.retryCount = state.retryCount + 1
-    def timeToRetrySecs = (state.retryCount < 30 ? state.retryCount : 30) * 10
-    Log("Retrying in ${timeToRetrySecs}...")
-    runIn (timeToRetrySecs, startSetup)
 }
 }
 
@@ -163,7 +157,7 @@ def createOrUpdateComponentdevice(hubId, mac, piDevices) {
 
     def piComponentDevice = getChildDevices()?.find { d -> d.getDeviceNetworkId() == mac }
     if (!piComponentDevice) {
-        Log("Creating RPI Component Device with dni: ${mac}")
+        Log("Creating HTTP sensor server device with dni: ${mac}")
         def deviceLabel = "HTTP sensors ${rpiIP}"
         piComponentDevice = addChildDevice("abchez", "RPI Component Device", mac, hubId, [label: deviceLabel])
         piComponentDevice.setId()
@@ -175,26 +169,49 @@ def createOrUpdateComponentdevice(hubId, mac, piDevices) {
 }
 
 def setSetupCompleted() {
+
     getChildDevices().each { 
     	d -> d.setOnline()
-        if (state.retryCount > 2) {
-    		sendPushMessage("${app.getLabel()} is back online.");
-    	}
+        sendPushMessage("${d.getLabel()} is online.");
     }
 
+    state.setupUUID = null
     state.setupPending = false
-    state.lastSetupCompleted = new Date ()
-    state.retryCount = 0
-    Log("SUCCESS setting up RPI Component Device")
+    clearError()
+    unschedule("setupTimeout")
     
-    def errorState = app.currentState("error")
-    if (errorState && errorState.value != "") {
-        setError("")
-    }
+    runEvery15Minutes(checkOnlineState)
 
-    unschedule('startSetup')
-    runIn (60 * 15, startSetup)
-    unschedule('setupTimeout')
+    state.lastSetupCompleted = new Date ()
+    Log("SUCCESS setting up HTTP sensor server device")
+}
+
+def checkOnlineState() {
+logEx {
+    getChildDevices().each { d -> 
+        def currentState = d.currentValue("onlineState")
+        def minsSinceLastNotification = d.minsSinceLastNotification()
+        Log("checkOnlineState ${minsSinceLastNotification}")
+        if (currentState == "online") {
+            if (minsSinceLastNotification > 15) {
+                d.setOffline()
+                sendPushMessage("${d.getLabel()} is offline.");
+            }
+        } else {
+            if (minsSinceLastNotification <= 15) {
+                d.setOnline()
+                sendPushMessage("${d.getLabel()} is back online.");
+                
+                // force notification of current device states
+                sendHubCommand(new physicalgraph.device.HubAction([
+                    method: "PUT",
+                    path: "/subscribe",
+                    body: [ uuid: "keepalive", hubIP: hub.getLocalIP(), hubPort: hub.getLocalSrvPortTCP() ]
+                ], "${rpiIP}:${rpiPort}"))
+            }
+        }
+    }
+}
 }
 
 def Log(String text) {
@@ -207,13 +224,21 @@ def setError(String text) {
     sendEvent(name: "error", value: text)
 }
 
+def clearError() {
+    def errorState = app.currentState("error")
+    if (errorState && errorState.value != "") {
+        sendEvent(name: "error", value: "")
+        state.setErrorTime = null
+    }
+}
+
 def logEx(closure) {
     try {
         closure()
     }
     catch (e) {
         setError("${e}")
-        Log("EXCEPTION error: ${e}")
+        //Log("EXCEPTION error: ${e}")
         throw e
     }
 }
