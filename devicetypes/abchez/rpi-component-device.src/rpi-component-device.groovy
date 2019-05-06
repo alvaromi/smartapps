@@ -41,8 +41,9 @@ def pause() {
 def getRpiDeviceTypeToDeviceHandler(String rpiDeviceType) {
     if (!state.rpiTypeToHandler) {
         state.rpiTypeToHandler = [
-            'motion' : "RPI Motion Sensor Device",
-            'contact' :  "RPI Contact Sensor Device",
+            'MOTION' : "RPI Motion Sensor Device",
+            'CONTACT' :  "RPI Contact Sensor Device",
+            'TEMPERATURE' : "RPI Temperature Sensor Device"
         ]
     }
     return state.rpiTypeToHandler[rpiDeviceType];
