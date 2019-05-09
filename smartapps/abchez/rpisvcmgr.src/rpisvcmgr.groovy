@@ -203,6 +203,7 @@ logEx {
                 sendPushMessage("${d.getLabel()} is back online.");
                 
                 // force notification of current device states
+                def hub = location.getHubs()[0]
                 sendHubCommand(new physicalgraph.device.HubAction([
                     method: "PUT",
                     path: "/subscribe",
