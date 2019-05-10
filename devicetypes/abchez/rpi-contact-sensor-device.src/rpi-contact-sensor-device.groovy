@@ -38,12 +38,17 @@ def getCurrentState() {
 }
 
 def setCurrentState(value, data) {
+logEx {
 	Log("set ${device.getDeviceNetworkId()} ${value} ${data}")
 	sendEvent(name: "contact", value: value, data : data)
     if (data) {
-        state.session =  data.session
+        state.session = data.session
         state.eventTime = data.eventTime
+    } else {
+        state.session = null
+        state.eventTime = null
     }
+}
 }
 
 def initialize() {
@@ -51,4 +56,16 @@ def initialize() {
 
 def Log(String text) {
     parent.Log(text)
+}
+
+def logEx(closure) {
+    try {
+        closure()
+        return true
+    }
+    catch (e) {
+        parent.setError("${e}")
+        parent.Log "EXCEPTION: ${e}"
+        throw e
+    }
 }

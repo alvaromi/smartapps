@@ -52,7 +52,8 @@ def getRpiDeviceTypeToDeviceHandler(String rpiDeviceType) {
 // parse events into attributes
 def parse(String description) {
 logEx {
-    parent.Log("parse ${description}")
+    //parent.Log("parse ${description}")
+    parent.Log("parse")
 	def msg = parseLanMessage(description)
 //    def headersAsString = msg.header // => headers as a string
 //    def headerMap = msg.headers      // => headers as a Map
@@ -65,18 +66,17 @@ logEx {
     def rpiNotification = msg.json
     
     if (rpiNotification && rpiNotification.deviceId) {
-    	Log("${rpiNotification}")
+    	Log("state change")
     	def childId = getChildDeviceId(rpiNotification.deviceId)
         def childDevice = getChildDevices().find { d -> d.getDeviceNetworkId() == childId}
         if (childDevice) {
         	def lastState = childDevice.getCurrentState()
             def lastSession = childDevice.state.session
             def lastEventTime = childDevice.state.eventTime
-            Log("last was ${rpiNotification.deviceId} ${lastEventTime}")
+            //Log("last was ${rpiNotification.deviceId} ${lastEventTime}")
             def hasMoreRecentEvent = (lastSession == rpiNotification.session) && lastEventTime && (lastEventTime > rpiNotification.eventTime)
 
             childDevice.setCurrentState(rpiNotification.state, [ session : rpiNotification.session, eventTime : rpiNotification.eventTime])
-            
             if (hasMoreRecentEvent) {
             	Log("!!!!!!!!!hasMoreRecentEvent ${rpiNotification.deviceId}")
                 childDevice.setCurrentState(lastState, [ session : lastSession, eventTime : lastEventTime])
@@ -84,10 +84,10 @@ logEx {
         }
         state.lastNotification = new Date().getTime()
     } else if (rpiNotification && rpiNotification.keepAlive) {
-        Log("${rpiNotification}")
+        Log("keepAlive")
         state.lastNotification = new Date().getTime()
     } else {
-        Log("parse ${msg.body}")
+        Log("unrecognized msg: ${msg.body}")
     }
 }
 }
@@ -109,6 +109,8 @@ def setOffline() {
 logEx {
     Log("setOffline")
     sendEvent (name: "onlineState", value: "offline")
+    
+    getChildDevices().each { d -> d.setCurrentState(null, null) }
 }
 }
 
@@ -169,6 +171,10 @@ def minsSinceLastNotification () {
 
 def Log(String text) {
     parent.Log(text)
+}
+
+def setError(String text) {
+   parent.setError(text)
 }
 
 def logEx(closure) {

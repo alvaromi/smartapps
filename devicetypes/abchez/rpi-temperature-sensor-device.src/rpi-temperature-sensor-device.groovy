@@ -7,7 +7,7 @@
 metadata {
 	definition (name: "RPI Temperature Sensor Device", namespace: "abchez", author: "Alvaro Miranda") {
 		capability "Temperature Measurement"
-        capability "Thermostat"
+        capability "Thermostat" // this is so Alexa can identify the device 
 	}
 
 	tiles(scale: 2) {
@@ -41,10 +41,13 @@ def getCurrentState() {
 def setCurrentState(value, data) {
 logEx {
     Log("set ${device.getDeviceNetworkId()} ${value} ${data}")
-	sendEvent(name: "temperature", value: value, unit: "F")
+	sendEvent(name: "temperature", value: value, unit: "F", data : data)
     if (data) {
         state.session =  data.session
         state.eventTime = data.eventTime
+    } else {
+        state.session = null
+        state.eventTime = null
     }
 }
 }
