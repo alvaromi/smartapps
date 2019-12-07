@@ -208,10 +208,16 @@ logEx {
                     method: "PUT",
                     path: "/subscribe",
                     body: [ uuid: "keepalive", hubIP: hub.getLocalIP(), hubPort: hub.getLocalSrvPortTCP() ]
-                ], "${rpiIP}:${rpiPort}"))
+                ], "${rpiIP}:${rpiPort}", [callback: subscribeForceNotificationCallback]))
             }
         }
     }
+}
+}
+
+def subscribeForceNotificationCallback(physicalgraph.device.HubResponse hubResponse) {
+logEx {
+    Log("subscribeForceNotificationCallback ${hubResponse?.json?.uuid}")
 }
 }
 
