@@ -195,7 +195,8 @@ logEx {
         if (currentState == "online") {
             if (minsSinceLastNotification > 15) {
                 d.setOffline()
-                sendPushMessage("${d.getLabel()} is offline.");
+                //sendPushMessage("${d.getLabel()} is offline.");
+                Log("${d.getLabel()} is offline.");
             }
         } else {
             if (minsSinceLastNotification <= 15) {
